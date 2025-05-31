@@ -132,7 +132,7 @@ MIT
 
 ## Support
 
-For issues and feature requests, please use the [GitHub issue tracker](https://github.com/yourusername/n8n-nodes-google-vertex-embeddings-extended/issues).
+For issues and feature requests, please use the [GitHub issue tracker](https://github.com/danblah/n8n-nodes-google-vertex-embeddings-extended/issues).
 
 ## Changelog
 
