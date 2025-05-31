@@ -12,7 +12,5 @@ module.exports = {
   ignorePatterns: ['.eslintrc.js', 'dist/**/*', 'node_modules/**/*'],
   plugins: ['eslint-plugin-n8n-nodes-base'],
   extends: ['plugin:n8n-nodes-base/community'],
-  rules: {
-    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-  },
+  rules: {},
 }; 
