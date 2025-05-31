@@ -4,10 +4,12 @@ This is an n8n community sub-node that provides Google Vertex AI Embeddings with
 
 ## Features
 
-- Support for all Google Vertex AI embedding models
+- Support for any Google Vertex AI embedding model (specify by name)
 - **Output dimensions configuration** (for supported models like text-embedding-004)
 - Task type specification for optimized embeddings
 - Region selection
+- Project ID dropdown with auto-loading from your Google account
+- Uses standard Google API credentials (same as other Google nodes)
 - Works as a sub-node with vector stores and other AI nodes
 
 ## Installation
@@ -30,17 +32,15 @@ npm install n8n-nodes-google-vertex-embeddings-extended
 
 1. A Google Cloud Platform account
 2. A project with Vertex AI API enabled
-3. Service account credentials with appropriate permissions
+3. Google API credentials configured in n8n
 
 ### Authentication
 
-1. Create a service account in your Google Cloud Console
-2. Download the JSON credentials file
-3. In n8n, create new credentials:
-   - Type: **Google Vertex Auth**
-   - Service Account Email: Your service account email
-   - Private Key: The private key from your JSON file
-   - Project ID: Your Google Cloud project ID
+This node uses the standard Google API credentials that you may already have configured for other Google nodes in n8n:
+
+1. In n8n, create or use existing **Google API** credentials
+2. Ensure your service account has the `Vertex AI User` role
+3. The node will automatically load your available projects
 
 ## Usage
 
@@ -50,9 +50,11 @@ This is a **sub-node** that provides embeddings functionality to other n8n AI no
 
 1. Add a vector store node to your workflow (e.g., Pinecone, Qdrant, Supabase Vector Store)
 2. Connect the **Embeddings Google Vertex Extended** node to the embeddings input of the vector store
-3. Configure your Google Vertex Auth credentials
-4. Select your preferred model and configure options
-5. The vector store will use these embeddings to process your documents
+3. Select your Google API credentials
+4. Choose your project from the dropdown (auto-loaded from your Google account)
+5. Enter your model name (e.g., `text-embedding-004`)
+6. Configure additional options as needed
+7. The vector store will use these embeddings to process your documents
 
 ### Example Workflow
 
@@ -64,8 +66,9 @@ This is a **sub-node** that provides embeddings functionality to other n8n AI no
 
 ### Configuration Options
 
-#### Models
+#### Model Name
 
+Enter any valid Google Vertex AI embedding model name. Examples:
 - `text-embedding-004` (Latest, supports output dimensions)
 - `text-multilingual-embedding-002` (Multilingual support, supports output dimensions)
 - `textembedding-gecko@003`
@@ -102,8 +105,9 @@ Optimize your embeddings by specifying the task type:
 This community node extends the official Google Vertex AI Embeddings node with:
 
 1. **Output Dimensions Support**: Configure the size of embedding vectors
-2. **Direct API Integration**: More control over API parameters
+2. **Flexible Model Selection**: Enter any model name instead of choosing from a fixed list
 3. **Task Type Selection**: Optimize embeddings for specific use cases
+4. **Standard Google Credentials**: Uses the same credentials as other Google nodes
 
 ## Compatible Nodes
 
@@ -125,18 +129,28 @@ This embeddings node can be used with:
 ### Common Issues
 
 1. **Authentication Errors**
-   - Ensure your service account has the `Vertex AI User` role
-   - Check that the Vertex AI API is enabled in your project
+   - Ensure your Google API credentials are properly configured
+   - Check that your service account has the `Vertex AI User` role
+   - Verify the Vertex AI API is enabled in your selected project
 
-2. **Region Errors**
+2. **Project Not Showing in Dropdown**
+   - Ensure your service account has access to the project
+   - Check that the Cloud Resource Manager API is enabled
+
+3. **Model Errors**
+   - Verify the model name is spelled correctly
+   - Ensure the model is available in your selected region
+   - Check [Google's documentation](https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/text-embeddings-api) for valid model names
+
+4. **Region Errors**
    - Make sure the selected region supports the chosen model
    - Default region is `us-central1`
 
-3. **Dimension Errors**
+5. **Dimension Errors**
    - Not all models support custom dimensions
    - Check model documentation for supported dimension values
 
-4. **Connection Issues**
+6. **Connection Issues**
    - This is a sub-node and cannot be used standalone
    - Must be connected to a compatible root node (vector store, AI chain, etc.)
 
@@ -153,6 +167,12 @@ MIT
 For issues and feature requests, please use the [GitHub issue tracker](https://github.com/danblah/n8n-nodes-google-vertex-embeddings-extended/issues).
 
 ## Changelog
+
+### 0.3.0
+- Switched to standard Google API credentials
+- Added project ID dropdown with auto-loading
+- Changed model selection to text input for flexibility
+- Removed custom credentials requirement
 
 ### 0.2.0
 - Converted to sub-node architecture for use with vector stores

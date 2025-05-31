@@ -4,6 +4,8 @@ import {
 	INodeTypeDescription,
 	SupplyData,
 	NodeConnectionType,
+	ILoadOptionsFunctions,
+	INodePropertyOptions,
 } from 'n8n-workflow';
 
 import { GoogleAuth } from 'google-auth-library';
@@ -35,7 +37,7 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 		},
 		credentials: [
 			{
-				name: 'googleVertexAuth',
+				name: 'googleApi',
 				required: true,
 			},
 		],
@@ -47,38 +49,24 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 		properties: [
 			getConnectionHintNoticeField([NodeConnectionType.AiVectorStore]),
 			{
-				displayName: 'Model',
-				name: 'model',
+				displayName: 'Project ID',
+				name: 'projectId',
 				type: 'options',
+				default: '',
+				typeOptions: {
+					loadOptionsMethod: 'getProjects',
+				},
+				description: 'The Google Cloud project ID',
+				required: true,
+			},
+			{
+				displayName: 'Model Name',
+				name: 'model',
+				type: 'string',
 				description:
-					'The model which will generate the embeddings. <a href="https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/text-embeddings-api">Learn more</a>.',
+					'The model to use for generating embeddings. <a href="https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/text-embeddings-api">Learn more</a>.',
 				default: 'text-embedding-004',
-				options: [
-					{
-						name: 'Text-embedding-004',
-						value: 'text-embedding-004',
-					},
-					{
-						name: 'Text-multilingual-embedding-002',
-						value: 'text-multilingual-embedding-002',
-					},
-					{
-						name: 'Textembedding-gecko@003',
-						value: 'textembedding-gecko@003',
-					},
-					{
-						name: 'Textembedding-gecko@002',
-						value: 'textembedding-gecko@002',
-					},
-					{
-						name: 'Textembedding-gecko@001',
-						value: 'textembedding-gecko@001',
-					},
-					{
-						name: 'Textembedding-gecko-multilingual@001',
-						value: 'textembedding-gecko-multilingual@001',
-					},
-				],
+				placeholder: 'e.g. text-embedding-004, text-multilingual-embedding-002',
 			},
 			{
 				displayName: 'Output Dimensions',
@@ -86,11 +74,6 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 				type: 'number',
 				default: 0,
 				description: 'The number of dimensions for the output embeddings. Set to 0 to use the model default. Only supported by certain models like text-embedding-004.',
-				displayOptions: {
-					show: {
-						model: ['text-embedding-004', 'text-multilingual-embedding-002'],
-					},
-				},
 			},
 			{
 				displayName: 'Options',
@@ -141,9 +124,54 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 		],
 	};
 
+	methods = {
+		loadOptions: {
+			async getProjects(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const credentials = await this.getCredentials('googleApi');
+				const email = credentials.email as string;
+				const privateKey = (credentials.privateKey as string).replace(/\\n/g, '\n');
+
+				const auth = new GoogleAuth({
+					credentials: {
+						client_email: email,
+						private_key: privateKey,
+					},
+					scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+				});
+
+				try {
+					const client = await auth.getClient();
+					const accessToken = await client.getAccessToken();
+					
+					const response = await fetch('https://cloudresourcemanager.googleapis.com/v1/projects', {
+						headers: {
+							'Authorization': `Bearer ${accessToken.token}`,
+						},
+					});
+
+					if (!response.ok) {
+						throw new Error('Failed to fetch projects');
+					}
+
+					const data = await response.json() as any;
+					const projects = data.projects || [];
+					
+					return projects.map((project: any) => ({
+						name: project.name || project.projectId,
+						value: project.projectId,
+					}));
+				} catch (error) {
+					console.error('Error fetching projects:', error);
+					return [];
+				}
+			},
+		},
+	};
+
 	async supplyData(this: ISupplyDataFunctions): Promise<SupplyData> {
-		const credentials = await this.getCredentials('googleVertexAuth');
+		const credentials = await this.getCredentials('googleApi');
 		
+		const projectId = this.getNodeParameter('projectId', 0) as string;
 		const modelName = this.getNodeParameter('model', 0) as string;
 		const outputDimensions = this.getNodeParameter('outputDimensions', 0, 0) as number;
 		const options = this.getNodeParameter('options', 0, {}) as {
@@ -151,7 +179,6 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 			taskType?: string;
 		};
 
-		const projectId = credentials.projectId as string;
 		const email = credentials.email as string;
 		const privateKey = (credentials.privateKey as string).replace(/\\n/g, '\n');
 		const region = options.region || 'us-central1';
