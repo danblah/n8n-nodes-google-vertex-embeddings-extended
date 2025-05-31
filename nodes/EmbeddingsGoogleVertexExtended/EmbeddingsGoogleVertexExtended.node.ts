@@ -1,13 +1,13 @@
 import {
-	IExecuteFunctions,
-	INodeExecutionData,
+	ISupplyDataFunctions,
 	INodeType,
 	INodeTypeDescription,
+	SupplyData,
 	NodeConnectionType,
-	NodeOperationError,
 } from 'n8n-workflow';
 
 import { GoogleAuth } from 'google-auth-library';
+import { getConnectionHintNoticeField } from '../utils/sharedFields';
 
 export class EmbeddingsGoogleVertexExtended implements INodeType {
 	description: INodeTypeDescription = {
@@ -39,18 +39,13 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 				required: true,
 			},
 		],
-		inputs: [NodeConnectionType.Main],
-		outputs: [NodeConnectionType.Main],
+		// This is a sub-node, it has no inputs
+		inputs: [],
+		// And it supplies data to the root node
+		outputs: [NodeConnectionType.AiEmbedding],
+		outputNames: ['Embeddings'],
 		properties: [
-			{
-				displayName: 'Text',
-				name: 'text',
-				type: 'string',
-				default: '',
-				required: true,
-				placeholder: 'Text to generate embeddings for',
-				description: 'The text to generate embeddings for',
-			},
+			getConnectionHintNoticeField([NodeConnectionType.AiVectorStore]),
 			{
 				displayName: 'Model',
 				name: 'model',
@@ -146,14 +141,20 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 		],
 	};
 
-	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-		const items = this.getInputData();
-		const returnData: INodeExecutionData[] = [];
+	async supplyData(this: ISupplyDataFunctions): Promise<SupplyData> {
 		const credentials = await this.getCredentials('googleVertexAuth');
+		
+		const modelName = this.getNodeParameter('model', 0) as string;
+		const outputDimensions = this.getNodeParameter('outputDimensions', 0, 0) as number;
+		const options = this.getNodeParameter('options', 0, {}) as {
+			region?: string;
+			taskType?: string;
+		};
 
 		const projectId = credentials.projectId as string;
 		const email = credentials.email as string;
 		const privateKey = (credentials.privateKey as string).replace(/\\n/g, '\n');
+		const region = options.region || 'us-central1';
 
 		const auth = new GoogleAuth({
 			credentials: {
@@ -163,70 +164,99 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 			scopes: ['https://www.googleapis.com/auth/cloud-platform'],
 		});
 
-		const client = await auth.getClient();
-		const accessToken = await client.getAccessToken();
+		// Create a custom embeddings class that matches the LangChain interface
+		class GoogleVertexAIEmbeddings {
+			private auth: GoogleAuth;
+			private projectId: string;
+			private region: string;
+			private modelName: string;
+			private outputDimensions: number;
+			private taskType?: string;
 
-		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
-			try {
-				const text = this.getNodeParameter('text', itemIndex) as string;
-				const modelName = this.getNodeParameter('model', itemIndex) as string;
-				const outputDimensions = this.getNodeParameter('outputDimensions', itemIndex) as number;
-				const options = this.getNodeParameter('options', itemIndex, {}) as {
-					region?: string;
-					taskType?: string;
-				};
+			constructor(config: {
+				auth: GoogleAuth;
+				projectId: string;
+				region: string;
+				modelName: string;
+				outputDimensions: number;
+				taskType?: string;
+			}) {
+				this.auth = config.auth;
+				this.projectId = config.projectId;
+				this.region = config.region;
+				this.modelName = config.modelName;
+				this.outputDimensions = config.outputDimensions;
+				this.taskType = config.taskType;
+			}
 
-				const region = options.region || 'us-central1';
-				const endpoint = `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/publishers/google/models/${modelName}:predict`;
+			async embedDocuments(texts: string[]): Promise<number[][]> {
+				const client = await this.auth.getClient();
+				const accessToken = await client.getAccessToken();
+				
+				const endpoint = `https://${this.region}-aiplatform.googleapis.com/v1/projects/${this.projectId}/locations/${this.region}/publishers/google/models/${this.modelName}:predict`;
 
-				const requestBody: any = {
-					instances: [
-						{
+				const embeddings: number[][] = [];
+
+				// Process in batches to avoid API limits
+				const batchSize = 5;
+				for (let i = 0; i < texts.length; i += batchSize) {
+					const batch = texts.slice(i, i + batchSize);
+					
+					const requestBody: any = {
+						instances: batch.map(text => ({
 							content: text,
-							...(options.taskType && { task_type: options.taskType }),
+							...(this.taskType && { task_type: this.taskType }),
+						})),
+						parameters: {
+							...(this.outputDimensions > 0 && { outputDimensionality: this.outputDimensions }),
 						},
-					],
-					parameters: {
-						...(outputDimensions > 0 && { outputDimensionality: outputDimensions }),
-					},
-				};
+					};
 
-				const response = await this.helpers.httpRequest({
-					method: 'POST',
-					url: endpoint,
-					headers: {
-						Authorization: `Bearer ${accessToken.token}`,
-						'Content-Type': 'application/json',
-					},
-					body: requestBody,
-				});
-
-				if (response.predictions && response.predictions.length > 0) {
-					const embeddings = response.predictions[0].embeddings;
-					returnData.push({
-						json: {
-							embeddings: embeddings.values || embeddings,
-							model: modelName,
-							dimensions: embeddings.values ? embeddings.values.length : embeddings.length,
+					const response = await fetch(endpoint, {
+						method: 'POST',
+						headers: {
+							'Authorization': `Bearer ${accessToken.token}`,
+							'Content-Type': 'application/json',
 						},
-						pairedItem: { item: itemIndex },
+						body: JSON.stringify(requestBody),
 					});
-				} else {
-					throw new NodeOperationError(this.getNode(), 'No embeddings returned from API');
+
+					if (!response.ok) {
+						throw new Error(`Google Vertex AI API error: ${response.statusText}`);
+					}
+
+					const data = await response.json() as any;
+					
+					if (data.predictions) {
+						for (const prediction of data.predictions) {
+							const embedding = prediction.embeddings?.values || prediction.embeddings;
+							if (embedding) {
+								embeddings.push(embedding);
+							}
+						}
+					}
 				}
-			} catch (error) {
-				if (this.continueOnFail()) {
-					const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-					returnData.push({
-						json: { error: errorMessage },
-						pairedItem: { item: itemIndex },
-					});
-					continue;
-				}
-				throw error;
+
+				return embeddings;
+			}
+
+			async embedQuery(text: string): Promise<number[]> {
+				const embeddings = await this.embedDocuments([text]);
+				return embeddings[0];
 			}
 		}
 
-		return [returnData];
+		const embeddings = new GoogleVertexAIEmbeddings({
+			auth,
+			projectId,
+			region,
+			modelName,
+			outputDimensions,
+			taskType: options.taskType,
+		});
+
+		return {
+			response: embeddings,
+		};
 	}
 } 

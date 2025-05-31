@@ -1,6 +1,6 @@
 # n8n-nodes-google-vertex-embeddings-extended
 
-This is an n8n community node that provides access to Google Vertex AI Embeddings with additional features, including support for output dimensions.
+This is an n8n community sub-node that provides Google Vertex AI Embeddings with additional features, including support for output dimensions. Use this node with vector store nodes in n8n.
 
 ## Features
 
@@ -8,7 +8,7 @@ This is an n8n community node that provides access to Google Vertex AI Embedding
 - **Output dimensions configuration** (for supported models like text-embedding-004)
 - Task type specification for optimized embeddings
 - Region selection
-- Full integration with n8n workflows
+- Works as a sub-node with vector stores and other AI nodes
 
 ## Installation
 
@@ -44,15 +44,34 @@ npm install n8n-nodes-google-vertex-embeddings-extended
 
 ## Usage
 
-### Basic Usage
+This is a **sub-node** that provides embeddings functionality to other n8n AI nodes.
 
-1. Add the **Embeddings Google Vertex Extended** node to your workflow
-2. Configure your Google Vertex Auth credentials
-3. Enter the text you want to generate embeddings for
-4. Select your preferred model
-5. Run the node
+### Using with Vector Stores
 
-### Advanced Configuration
+1. Add a vector store node to your workflow (e.g., Pinecone, Qdrant, Supabase Vector Store)
+2. Connect the **Embeddings Google Vertex Extended** node to the embeddings input of the vector store
+3. Configure your Google Vertex Auth credentials
+4. Select your preferred model and configure options
+5. The vector store will use these embeddings to process your documents
+
+### Example Workflow
+
+```
+[Document Loader] → [Vector Store] ← [Embeddings Google Vertex Extended]
+                          ↓
+                    [AI Agent/Chain]
+```
+
+### Configuration Options
+
+#### Models
+
+- `text-embedding-004` (Latest, supports output dimensions)
+- `text-multilingual-embedding-002` (Multilingual support, supports output dimensions)
+- `textembedding-gecko@003`
+- `textembedding-gecko@002`
+- `textembedding-gecko@001`
+- `textembedding-gecko-multilingual@001`
 
 #### Output Dimensions
 
@@ -71,32 +90,12 @@ Optimize your embeddings by specifying the task type:
 - **Classification**: For text classification tasks
 - **Clustering**: For grouping similar texts
 
-## Supported Models
-
-- `text-embedding-004` (Latest, supports output dimensions)
-- `text-multilingual-embedding-002` (Multilingual support, supports output dimensions)
-- `textembedding-gecko@003`
-- `textembedding-gecko@002`
-- `textembedding-gecko@001`
-- `textembedding-gecko-multilingual@001`
-
-## Example Output
-
-```json
-{
-  "embeddings": [0.123, -0.456, 0.789, ...],
-  "model": "text-embedding-004",
-  "dimensions": 768
-}
-```
-
 ## Use Cases
 
-- **Semantic Search**: Generate embeddings for documents and queries
-- **Text Classification**: Create feature vectors for ML models
-- **Clustering**: Group similar documents together
-- **Recommendation Systems**: Find similar items based on text descriptions
-- **RAG Applications**: Build retrieval-augmented generation systems
+- **Semantic Search**: Generate embeddings for documents and queries in vector stores
+- **RAG Applications**: Build retrieval-augmented generation systems with custom embeddings
+- **Document Similarity**: Find similar documents in your vector database
+- **Multi-language Support**: Use multilingual models for international applications
 
 ## Differences from Official n8n Node
 
@@ -104,7 +103,22 @@ This community node extends the official Google Vertex AI Embeddings node with:
 
 1. **Output Dimensions Support**: Configure the size of embedding vectors
 2. **Direct API Integration**: More control over API parameters
-3. **Detailed Response**: Returns dimension count and model information
+3. **Task Type Selection**: Optimize embeddings for specific use cases
+
+## Compatible Nodes
+
+This embeddings node can be used with:
+
+- Simple Vector Store
+- Pinecone Vector Store
+- Qdrant Vector Store
+- Supabase Vector Store
+- PGVector Vector Store
+- Milvus Vector Store
+- MongoDB Atlas Vector Store
+- Zep Vector Store
+- Question and Answer Chain
+- AI Agent nodes
 
 ## Troubleshooting
 
@@ -122,6 +136,10 @@ This community node extends the official Google Vertex AI Embeddings node with:
    - Not all models support custom dimensions
    - Check model documentation for supported dimension values
 
+4. **Connection Issues**
+   - This is a sub-node and cannot be used standalone
+   - Must be connected to a compatible root node (vector store, AI chain, etc.)
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
@@ -135,6 +153,10 @@ MIT
 For issues and feature requests, please use the [GitHub issue tracker](https://github.com/danblah/n8n-nodes-google-vertex-embeddings-extended/issues).
 
 ## Changelog
+
+### 0.2.0
+- Converted to sub-node architecture for use with vector stores
+- Improved compatibility with n8n AI nodes
 
 ### 0.1.0
 - Initial release
