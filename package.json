@@ -26,10 +26,10 @@
   "scripts": {
     "build": "tsc && mkdir -p dist/nodes/EmbeddingsGoogleVertexExtended && cp -r nodes/EmbeddingsGoogleVertexExtended/*.svg dist/nodes/EmbeddingsGoogleVertexExtended/ 2>/dev/null || true",
     "dev": "tsc --watch",
-    "format": "prettier nodes credentials --write",
-    "lint": "eslint nodes credentials --ext .ts",
-    "lintfix": "eslint nodes credentials --ext .ts --fix",
-    "prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.json nodes credentials"
+    "format": "prettier nodes --write",
+    "lint": "eslint nodes --ext .ts",
+    "lintfix": "eslint nodes --ext .ts --fix",
+    "prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.json nodes"
   },
   "files": [
     "dist"
