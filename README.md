@@ -168,6 +168,10 @@ For issues and feature requests, please use the [GitHub issue tracker](https://g
 
 ## Changelog
 
+### 0.3.1
+- Fixed node structure to properly register as a sub-node in embeddings category
+- Resolved issue where node was appearing as top-level instead of sub-node
+
 ### 0.3.0
 - Switched to standard Google API credentials
 - Added project ID dropdown with auto-loading

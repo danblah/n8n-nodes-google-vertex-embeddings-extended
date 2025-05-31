@@ -10,6 +10,7 @@
     "preserveConstEnums": true,
     "declaration": true,
     "outDir": "./dist",
+    "rootDir": "./",
     "target": "es2020",
     "sourceMap": true,
     "esModuleInterop": true,

@@ -9,7 +9,7 @@ import {
 } from 'n8n-workflow';
 
 import { GoogleAuth } from 'google-auth-library';
-import { getConnectionHintNoticeField } from '../utils/sharedFields';
+import { getConnectionHintNoticeField } from '../../utils/sharedFields';
 
 export class EmbeddingsGoogleVertexExtended implements INodeType {
 	description: INodeTypeDescription = {
