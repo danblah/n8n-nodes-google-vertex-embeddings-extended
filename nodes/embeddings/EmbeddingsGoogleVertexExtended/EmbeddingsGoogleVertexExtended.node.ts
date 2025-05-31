@@ -224,41 +224,80 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 
 				const embeddings: number[][] = [];
 
-				// Process in batches to avoid API limits
-				const batchSize = 5;
-				for (let i = 0; i < texts.length; i += batchSize) {
-					const batch = texts.slice(i, i + batchSize);
-					
-					const requestBody: any = {
-						instances: batch.map(text => ({
-							content: text,
-							...(this.taskType && { task_type: this.taskType }),
-						})),
-						parameters: {
-							...(this.outputDimensions > 0 && { outputDimensionality: this.outputDimensions }),
-						},
-					};
+				// Special handling for gemini-embedding-001 which only supports one input at a time
+				if (this.modelName === 'gemini-embedding-001') {
+					for (const text of texts) {
+						const requestBody: any = {
+							instances: [{
+								content: text,
+								...(this.taskType && { task_type: this.taskType }),
+							}],
+							parameters: {
+								...(this.outputDimensions > 0 && { outputDimensionality: this.outputDimensions }),
+							},
+						};
 
-					const response = await fetch(endpoint, {
-						method: 'POST',
-						headers: {
-							'Authorization': `Bearer ${accessToken.token}`,
-							'Content-Type': 'application/json',
-						},
-						body: JSON.stringify(requestBody),
-					});
+						const response = await fetch(endpoint, {
+							method: 'POST',
+							headers: {
+								'Authorization': `Bearer ${accessToken.token}`,
+								'Content-Type': 'application/json',
+							},
+							body: JSON.stringify(requestBody),
+						});
 
-					if (!response.ok) {
-						throw new Error(`Google Vertex AI API error: ${response.statusText}`);
-					}
+						if (!response.ok) {
+							const errorText = await response.text();
+							throw new Error(`Google Vertex AI API error: ${response.statusText} - ${errorText}`);
+						}
 
-					const data = await response.json() as any;
-					
-					if (data.predictions) {
-						for (const prediction of data.predictions) {
-							const embedding = prediction.embeddings?.values || prediction.embeddings;
+						const data = await response.json() as any;
+						
+						if (data.predictions && data.predictions[0]) {
+							const embedding = data.predictions[0].embeddings?.values || data.predictions[0].embeddings;
 							if (embedding) {
 								embeddings.push(embedding);
+							}
+						}
+					}
+				} else {
+					// Process in batches for other models
+					const batchSize = 5;
+					for (let i = 0; i < texts.length; i += batchSize) {
+						const batch = texts.slice(i, i + batchSize);
+						
+						const requestBody: any = {
+							instances: batch.map(text => ({
+								content: text,
+								...(this.taskType && { task_type: this.taskType }),
+							})),
+							parameters: {
+								...(this.outputDimensions > 0 && { outputDimensionality: this.outputDimensions }),
+							},
+						};
+
+						const response = await fetch(endpoint, {
+							method: 'POST',
+							headers: {
+								'Authorization': `Bearer ${accessToken.token}`,
+								'Content-Type': 'application/json',
+							},
+							body: JSON.stringify(requestBody),
+						});
+
+						if (!response.ok) {
+							const errorText = await response.text();
+							throw new Error(`Google Vertex AI API error: ${response.statusText} - ${errorText}`);
+						}
+
+						const data = await response.json() as any;
+						
+						if (data.predictions) {
+							for (const prediction of data.predictions) {
+								const embedding = prediction.embeddings?.values || prediction.embeddings;
+								if (embedding) {
+									embeddings.push(embedding);
+								}
 							}
 						}
 					}

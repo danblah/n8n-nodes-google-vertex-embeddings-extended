@@ -141,6 +141,7 @@ This embeddings node can be used with:
    - Verify the model name is spelled correctly
    - Ensure the model is available in your selected region
    - Check [Google's documentation](https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/text-embeddings-api) for valid model names
+   - **Note:** `gemini-embedding-001` only supports one input at a time, which may slow down processing for large datasets
 
 4. **Region Errors**
    - Make sure the selected region supports the chosen model
@@ -153,6 +154,11 @@ This embeddings node can be used with:
 6. **Connection Issues**
    - This is a sub-node and cannot be used standalone
    - Must be connected to a compatible root node (vector store, AI chain, etc.)
+
+7. **Bad Request Errors with gemini-embedding-001**
+   - This model only accepts one text input per request
+   - The node automatically handles this limitation by processing texts individually
+   - Consider using `text-embedding-004` or `text-multilingual-embedding-002` for better performance with multiple texts
 
 ## Contributing
 
@@ -167,6 +173,11 @@ MIT
 For issues and feature requests, please use the [GitHub issue tracker](https://github.com/danblah/n8n-nodes-google-vertex-embeddings-extended/issues).
 
 ## Changelog
+
+### 0.3.2
+- Fixed issue with gemini-embedding-001 model that only supports single input per request
+- Added better error messages to show API response details
+- Updated documentation about model limitations
 
 ### 0.3.1
 - Fixed node structure to properly register as a sub-node in embeddings category
